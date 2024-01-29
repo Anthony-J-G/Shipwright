@@ -117,6 +117,8 @@ namespace SohGui {
 
     std::shared_ptr<AudioEditor> mAudioEditorWindow;
     std::shared_ptr<GameControlEditor::GameControlEditorWindow> mGameControlEditorWindow;
+    std::shared_ptr<InputViewer> mInputViewer;
+    std::shared_ptr<InputViewerSettingsWindow> mInputViewerSettings;
     std::shared_ptr<CosmeticsEditorWindow> mCosmeticsEditorWindow;
     std::shared_ptr<ActorViewerWindow> mActorViewerWindow;
     std::shared_ptr<ColViewerWindow> mColViewerWindow;
@@ -166,6 +168,10 @@ namespace SohGui {
         gui->AddGuiWindow(mAudioEditorWindow);
         mGameControlEditorWindow = std::make_shared<GameControlEditor::GameControlEditorWindow>("gGameControlEditorEnabled", "Game Control Editor");
         gui->AddGuiWindow(mGameControlEditorWindow);
+        mInputViewer = std::make_shared<InputViewer>("gInputEnabled", "Input Viewer");
+        gui->AddGuiWindow(mInputViewer);
+        mInputViewerSettings = std::make_shared<InputViewerSettingsWindow>("gInputViewerSettingsEnabled", "Input Viewer Settings");
+        gui->AddGuiWindow(mInputViewerSettings);
         mCosmeticsEditorWindow = std::make_shared<CosmeticsEditorWindow>("gCosmeticsEditorEnabled", "Cosmetics Editor");
         gui->AddGuiWindow(mCosmeticsEditorWindow);
         mActorViewerWindow = std::make_shared<ActorViewerWindow>("gActorViewerEnabled", "Actor Viewer");
