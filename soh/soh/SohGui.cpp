@@ -168,9 +168,9 @@ namespace SohGui {
         gui->AddGuiWindow(mAudioEditorWindow);
         mGameControlEditorWindow = std::make_shared<GameControlEditor::GameControlEditorWindow>("gGameControlEditorEnabled", "Game Control Editor");
         gui->AddGuiWindow(mGameControlEditorWindow);
-        mInputViewer = std::make_shared<InputViewer>("gInputEnabled", "Input Viewer");
+        mInputViewer = std::make_shared<InputViewer>("gOpenWindows.InputViewer", "Input Viewer");
         gui->AddGuiWindow(mInputViewer);
-        mInputViewerSettings = std::make_shared<InputViewerSettingsWindow>("gInputViewerSettingsEnabled", "Input Viewer Settings");
+        mInputViewerSettings = std::make_shared<InputViewerSettingsWindow>("gOpenWindows.InputViewerSettings", "Input Viewer Settings");
         gui->AddGuiWindow(mInputViewerSettings);
         mCosmeticsEditorWindow = std::make_shared<CosmeticsEditorWindow>("gCosmeticsEditorEnabled", "Cosmetics Editor");
         gui->AddGuiWindow(mCosmeticsEditorWindow);
