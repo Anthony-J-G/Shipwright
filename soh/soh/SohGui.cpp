@@ -121,6 +121,7 @@ namespace SohGui {
     std::shared_ptr<ActorViewerWindow> mActorViewerWindow;
     std::shared_ptr<ColViewerWindow> mColViewerWindow;
     std::shared_ptr<SaveEditorWindow> mSaveEditorWindow;
+    std::shared_ptr<MacroEditorWindow> mMacroEditorWindow;
     std::shared_ptr<DLViewerWindow> mDLViewerWindow;
     std::shared_ptr<ValueViewerWindow> mValueViewerWindow;
     std::shared_ptr<GameplayStatsWindow> mGameplayStatsWindow;
@@ -174,6 +175,8 @@ namespace SohGui {
         gui->AddGuiWindow(mColViewerWindow);
         mSaveEditorWindow = std::make_shared<SaveEditorWindow>("gSaveEditorEnabled", "Save Editor");
         gui->AddGuiWindow(mSaveEditorWindow);
+        mMacroEditorWindow = std::make_shared<MacroEditorWindow>("gMacroEditorEnabled", "Macro Editor");
+        gui->AddGuiWindow(mMacroEditorWindow);
         mDLViewerWindow = std::make_shared<DLViewerWindow>("gDLViewerEnabled", "Display List Viewer");
         gui->AddGuiWindow(mDLViewerWindow);
         mValueViewerWindow = std::make_shared<ValueViewerWindow>("gValueViewer.WindowOpen", "Value Viewer");

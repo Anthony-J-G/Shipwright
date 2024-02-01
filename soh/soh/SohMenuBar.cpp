@@ -22,6 +22,7 @@
 
 #include "Enhancements/audio/AudioEditor.h"
 #include "Enhancements/controls/GameControlEditor.h"
+#include "Enhancements/controls/MacroEditor.h"
 #include "Enhancements/cosmetics/CosmeticsEditor.h"
 #include "Enhancements/debugger/actorViewer.h"
 #include "Enhancements/debugger/colViewer.h"
@@ -1497,6 +1498,7 @@ void DrawCheatsMenu() {
 extern std::shared_ptr<LUS::GuiWindow> mStatsWindow;
 extern std::shared_ptr<LUS::GuiWindow> mConsoleWindow;
 extern std::shared_ptr<SaveEditorWindow> mSaveEditorWindow;
+extern std::shared_ptr<MacroEditorWindow> mMacroEditorWindow;
 extern std::shared_ptr<ColViewerWindow> mColViewerWindow;
 extern std::shared_ptr<ActorViewerWindow> mActorViewerWindow;
 extern std::shared_ptr<DLViewerWindow> mDLViewerWindow;
@@ -1532,26 +1534,6 @@ void DrawDeveloperToolsMenu() {
         UIWidgets::Tooltip("Optimized debug warp screen, with the added ability to chose entrances and time of day");
         UIWidgets::PaddedEnhancementCheckbox("Debug Warp Screen Translation", "gDebugWarpScreenTranslation", true, false, false, "", UIWidgets::CheckboxGraphics::Cross, true);
         UIWidgets::Tooltip("Translate the Debug Warp Screen based on the game language");
-        if (gPlayState != NULL) {
-            UIWidgets::PaddedSeparator();
-            ImGui::Checkbox("Frame Advance##frameAdvance", (bool*)&gPlayState->frameAdvCtx.enabled);
-            if (gPlayState->frameAdvCtx.enabled) {
-                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12.0f, 6.0f));
-                ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0,0));
-                ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
-                ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.22f, 0.38f, 0.56f, 1.0f));
-                if (ImGui::Button("Advance 1", ImVec2(ImGui::GetContentRegionAvail().x / 2.0f, 0.0f))) {
-                    CVarSetInteger("gFrameAdvance", 1);
-                }
-                ImGui::SameLine();
-                ImGui::Button("Advance (Hold)");
-                if (ImGui::IsItemActive()) {
-                    CVarSetInteger("gFrameAdvance", 1);
-                }
-                ImGui::PopStyleVar(3);
-                ImGui::PopStyleColor(1);
-            }
-        }
         UIWidgets::PaddedSeparator();
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12.0f, 6.0f));
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0,0));
@@ -1574,6 +1556,13 @@ void DrawDeveloperToolsMenu() {
         if (mSaveEditorWindow) {
             if (ImGui::Button(GetWindowButtonText("Save Editor", CVarGetInteger("gSaveEditorEnabled", 0)).c_str(), ImVec2(-1.0f, 0.0f))) {
                 mSaveEditorWindow->ToggleVisibility();
+            }
+        }
+        UIWidgets::Spacer(0);
+        if (mMacroEditorWindow) {
+            if (ImGui::Button(GetWindowButtonText("Macro Editor", CVarGetInteger("gMacroEditorEnabled", 0)).c_str(),
+                              ImVec2(-1.0f, 0.0f))) {
+                mMacroEditorWindow->ToggleVisibility();
             }
         }
         UIWidgets::Spacer(0);
