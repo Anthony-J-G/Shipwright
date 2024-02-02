@@ -28,6 +28,7 @@ void MacroEditorWindow::UpdateElement() {
 
 void MacroEditorWindow::DrawElement() {
     ImGui::Begin("Input Macro Editor###sohMacroEditorWindowV1", &mIsVisible);
+
     if (gPlayState != NULL) {
         UIWidgets::PaddedSeparator();
         ImGui::Checkbox("Frame Advance##frameAdvance", (bool*)&gPlayState->frameAdvCtx.enabled);
@@ -48,6 +49,9 @@ void MacroEditorWindow::DrawElement() {
             ImGui::PopStyleColor(1);
         }
     }
+
+    UIWidgets::PaddedEnhancementCheckbox("Show Inputs", "gInputEnabled", true, false);
+    UIWidgets::Tooltip("Shows currently pressed inputs on the bottom right of the screen");
 
     ImGui::End();
 }
