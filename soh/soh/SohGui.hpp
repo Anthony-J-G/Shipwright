@@ -13,6 +13,7 @@
 #include "Enhancements/audio/AudioEditor.h"
 #include "Enhancements/controls/GameControlEditor.h"
 #include "Enhancements/controls/MacroEditor.h"
+#include "Enhancements/controls/InputViewer.h"
 #include "Enhancements/cosmetics/CosmeticsEditor.h"
 #include "Enhancements/debugger/actorViewer.h"
 #include "Enhancements/debugger/colViewer.h"
