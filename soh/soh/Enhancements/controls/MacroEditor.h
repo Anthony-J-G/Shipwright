@@ -28,8 +28,14 @@ protected:
     void UpdateElement() override;
 
 private:
+    ImVec4 statusColor = ImVec4(0.34f, 0.34f, 0.34f, 1.0f);
+    std::string statusTitle = "Not Recording";
 
     void DrawStickSection(uint8_t port, uint8_t stick, int32_t id, ImVec4 color);
+
+    bool isRecording = false;
+    void StartRecording();
+    void StopRecording();
     /*
     void DrawStickDirectionLine(const char* axisDirectionName, uint8_t port, uint8_t stick, LUS::Direction direction,
         ImVec4 color);

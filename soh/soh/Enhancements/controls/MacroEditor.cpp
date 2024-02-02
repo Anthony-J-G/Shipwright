@@ -29,31 +29,62 @@ void MacroEditorWindow::UpdateElement() {
 void MacroEditorWindow::DrawElement() {
     ImGui::Begin("Input Macro Editor###sohMacroEditorWindowV1", &mIsVisible);
 
-    if (gPlayState != NULL) {
-        UIWidgets::PaddedSeparator();
-        ImGui::Checkbox("Frame Advance##frameAdvance", (bool*)&gPlayState->frameAdvCtx.enabled);
-        if (gPlayState->frameAdvCtx.enabled) {
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12.0f, 6.0f));
-            ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0, 0));
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
-            ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.22f, 0.38f, 0.56f, 1.0f));
-            if (ImGui::Button("Advance 1", ImVec2(ImGui::GetContentRegionAvail().x / 2.0f, 0.0f))) {
-                CVarSetInteger("gFrameAdvance", 1);
-            }
-            ImGui::SameLine();
-            ImGui::Button("Advance (Hold)");
-            if (ImGui::IsItemActive()) {
-                CVarSetInteger("gFrameAdvance", 1);
-            }
-            ImGui::PopStyleVar(3);
-            ImGui::PopStyleColor(1);
-        }
+    if (gPlayState == NULL) {
+        ImGui::Text("Waiting For Play State to start...");
+        StopRecording();
+
+        ImGui::End();
+        return;
     }
 
-    UIWidgets::PaddedEnhancementCheckbox("Show Inputs", "gInputEnabled", true, false);
-    UIWidgets::Tooltip("Shows currently pressed inputs on the bottom right of the screen");
+    UIWidgets::PaddedSeparator();
+    ImGui::Checkbox("Frame Advance##frameAdvance", (bool*)&gPlayState->frameAdvCtx.enabled);
+    if (gPlayState->frameAdvCtx.enabled) {
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12.0f, 6.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.22f, 0.38f, 0.56f, 1.0f));
+        if (ImGui::Button("Advance 1", ImVec2(ImGui::GetContentRegionAvail().x / 2.0f, 0.0f))) {
+            CVarSetInteger("gFrameAdvance", 1);
+        }
+        ImGui::SameLine();
+        ImGui::Button("Advance (Hold)");
+        if (ImGui::IsItemActive()) {
+            CVarSetInteger("gFrameAdvance", 1);
+        }
+        ImGui::PopStyleVar(3);
+        ImGui::PopStyleColor(1);
+    }
+
+    ImGui::TextColored(statusColor, statusTitle.c_str());
+
+    if (!isRecording) {
+        if (ImGui::Button("Start Recording", ImVec2(-1.0f, 0.0f))) {
+            StartRecording();
+
+            statusTitle = "Recording...";
+            statusColor = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+        }
+
+    } else {
+        if (ImGui::Button("Stop Recording", ImVec2(-1.0f, 0.0f))) {
+            StopRecording();
+
+            statusTitle = "Not Recording";
+            statusColor = ImVec4(0.34f, 0.34f, 0.34f, 1.0f);
+        }
+
+    }
 
     ImGui::End();
+}
+
+void MacroEditorWindow::StartRecording() {
+    isRecording = true;
+}
+
+void MacroEditorWindow::StopRecording() {
+    isRecording = false;
 }
 
 
