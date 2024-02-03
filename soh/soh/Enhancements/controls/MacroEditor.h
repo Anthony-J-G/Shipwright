@@ -8,20 +8,20 @@
 #include <vector>
 #include <set>
 
-typedef int MacroEditorStatus; // -> enum MacroEditorStatus_
 
-enum MacroEditorStatus_ {
-    MacroEditorStatus_None             = 0 << 0,
-    MacroEditorStatus_Recording        = 1 << 0,
-    MacroEditorStatus_Saving           = 1 << 1,
-    MacroEditorStatus_SavingFinished   = 1 << 2,
-};
+typedef enum {
+    MacroEditorStatus_NotRecording      = 0,
+    MacroEditorStatus_Recording,
+    MacroEditorStatus_Saving,
+    MacroEditorStatus_SavingFinished,
+} MacroEditorStatus;
+
+
 
 class MacroEditorWindow : public LUS::GuiWindow {
   public:
     using GuiWindow::GuiWindow;
     ~MacroEditorWindow();
-
 
 protected:
     void InitElement() override;
@@ -30,8 +30,9 @@ protected:
 
 private:
     bool isRecording = false;
+
     ImVec4 statusColor = ImVec4(0.34f, 0.34f, 0.34f, 1.0f);
-    std::string statusTitle = "Not Recording";
+    MacroEditorStatus status = MacroEditorStatus_NotRecording;
     u32 startingFrame = 0;
     u32 frameNum = 0;
     std::vector<OSContPad> history;
@@ -44,5 +45,5 @@ private:
     void StopRecording();
 
     bool SaveMacro();
-    
+
 };

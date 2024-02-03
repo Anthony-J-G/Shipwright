@@ -14,24 +14,32 @@ extern "C" PlayState* gPlayState;
 
 #define SCALE_IMGUI_SIZE(value) ((value / 13.0f) * ImGui::GetFontSize())
 
+u8 saved;
 std::thread gMacroThread;
 
+static const char* recordingStatusDisplayOptions[4] = { "Not Recording", "Recording...", "Saving...", "Saved!" };
 
-void SaveMacroImgui() {
+
+void SaveMacroImgui(const std::vector<OSContPad>& history) {
     CVarSetInteger("gMacroSaving", 1);
     CVarSave();
 
     // todo: convert MacroEditorWindow.history into a JSON serializable format
+    for (auto const& input : history) {
+
+    }
+
+    // todo: check if 'Macros/' directory exists
 
 
-    // check if 'Macros/' directory exists
-
-    // save macro .json
+    // todo: save macro .json
 
 
     CVarSetInteger("gMacroSaving", 0);
     CVarSave();
     CVarLoad();
+
+    saved = 1;
 }
 
 
@@ -45,6 +53,11 @@ void MacroEditorWindow::UpdateElement() { }
 
 
 void MacroEditorWindow::DrawElement() {
+    if (saved) {
+        saved = 0;
+        gMacroThread.join();
+    }
+
     ImGui::Begin("Input Macro Editor###sohMacroEditorWindowV1", &mIsVisible);
 
     // Break early if the PlayState is NULL
@@ -89,32 +102,22 @@ void MacroEditorWindow::DrawElement() {
     // Setup Recording
     DisplayStatus();
 
-    if (!isRecording) {
-        if (ImGui::Button("Start Recording", ImVec2(-1.0f, 0.0f))) {
-            StartRecording();
-        }
+    if (!isRecording && ImGui::Button("Start Recording", ImVec2(-1.0f, 0.0f))) {
+        StartRecording();
+    }
+    if (isRecording && ImGui::Button("Stop Recording", ImVec2(-1.0f, 0.0f))) {
+        StopRecording();
+    }
 
-    } else {
-        std::string buttonsPressed = (
-            std::to_string(pads[0].button) + " " + 
-            std::to_string(pads[0].stick_x) + " " + 
-            std::to_string(pads[0].stick_y)
-        );
-
+    if (isRecording) {
+        std::string buttonsPressed =
+            (std::to_string(mainController.button) + " " + std::to_string(mainController.stick_x) + " " +
+             std::to_string(mainController.stick_y));
         RecordButton(mainController);
-
         ImGui::Text(buttonsPressed.c_str());
-
-        if (ImGui::Button("Stop Recording", ImVec2(-1.0f, 0.0f))) {
-            StopRecording();
-        }
-
     }
 
     if (!isRecording && !history.empty()) {
-        std::string msg = "Macro Loaded with total frame count (" + std::to_string(history.size()) + ")";
-        ImGui::Text(msg.c_str());
-
         if (ImGui::Button("Save", ImVec2(-1.0f, 0.0f))) {
             SaveMacro();
         }
@@ -126,19 +129,21 @@ void MacroEditorWindow::DrawElement() {
 
 
 void MacroEditorWindow::DisplayStatus() {
-
-
     if (isRecording) {
-        statusTitle = "Recording...";
+        status = MacroEditorStatus_Recording;
         statusColor = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
     }
     if (!isRecording) {
-        statusTitle = "Not Recording";
+        status = MacroEditorStatus_NotRecording;
         statusColor = ImVec4(0.34f, 0.34f, 0.34f, 1.0f);
     }
+    if (CVarGetInteger("gMacroSaving", 1) == 1) {
+        status = MacroEditorStatus_Saving;
+        statusColor = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
+    }
 
-    ImGui::TextColored(statusColor, (statusTitle + " " + std::to_string(frameNum)).c_str());
-
+    std::string statusTitle = std::string(recordingStatusDisplayOptions[status]) + " " + std::to_string(frameNum);
+    ImGui::TextColored(statusColor, statusTitle.c_str());
 }
 
 
@@ -166,12 +171,9 @@ void MacroEditorWindow::StopRecording() {
 
 bool MacroEditorWindow::SaveMacro() {
     if (CVarGetInteger("gMacroSaving", 0) == 0) {
-        statusTitle = "Saving...";
-        statusColor = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
-
-        gMacroThread = std::thread(&SaveMacroImgui);
+        gMacroThread = std::thread(&SaveMacroImgui, history);
         return true;
-    }    
+    }
 
     return false;
 }
