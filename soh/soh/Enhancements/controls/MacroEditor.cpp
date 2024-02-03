@@ -4,6 +4,7 @@
 #include "soh/OTRGlobals.h"
 #include "../../UIWidgets.hpp"
 #include "z64.h"
+#include <thread>
 
 #ifndef __WIIU__
 #include "controller/controldevice/controller/mapping/sdl/SDLAxisDirectionToButtonMapping.h"
@@ -13,18 +14,34 @@ extern "C" PlayState* gPlayState;
 
 #define SCALE_IMGUI_SIZE(value) ((value / 13.0f) * ImGui::GetFontSize())
 
-MacroEditorWindow::~MacroEditorWindow() {
+std::thread gMacroThread;
+
+
+void SaveMacroImgui() {
+    CVarSetInteger("gMacroSaving", 1);
+    CVarSave();
+
+    // todo: convert MacroEditorWindow.history into a JSON serializable format
+
+
+    // check if 'Macros/' directory exists
+
+    // save macro .json
+
+
+    CVarSetInteger("gMacroSaving", 0);
+    CVarSave();
+    CVarLoad();
 }
 
 
-void MacroEditorWindow::InitElement() {
-   
-
-}
+MacroEditorWindow::~MacroEditorWindow() { }
 
 
-void MacroEditorWindow::UpdateElement() {
-}
+void MacroEditorWindow::InitElement() { }
+
+
+void MacroEditorWindow::UpdateElement() { }
 
 
 void MacroEditorWindow::DrawElement() {
@@ -42,13 +59,9 @@ void MacroEditorWindow::DrawElement() {
     OSContPad* pads = LUS::Context::GetInstance()->GetControlDeck()->GetPads();
     OSContPad mainController = pads[0];
 
-    if (mainController.button & BTN_DDOWN && mainController.button & BTN_L) {
-        gPlayState->frameAdvCtx.enabled = true;
-    }
-
-    if (pads[0].button & BTN_DUP && pads[0].button & BTN_L) {
-        gPlayState->frameAdvCtx.enabled = false;
-    }
+    // Frame Advance Controller Shortcuts
+    if (mainController.button & BTN_DDOWN && mainController.button & BTN_L) { gPlayState->frameAdvCtx.enabled = true; }
+    if (mainController.button & BTN_DUP && pads[0].button & BTN_L) { gPlayState->frameAdvCtx.enabled = false; }
 
     // Enable Frame Advance
     UIWidgets::PaddedSeparator();
@@ -74,7 +87,7 @@ void MacroEditorWindow::DrawElement() {
     }
 
     // Setup Recording
-    ImGui::TextColored(statusColor, statusTitle.c_str());
+    DisplayStatus();
 
     if (!isRecording) {
         if (ImGui::Button("Start Recording", ImVec2(-1.0f, 0.0f))) {
@@ -98,15 +111,41 @@ void MacroEditorWindow::DrawElement() {
 
     }
 
+    if (!isRecording && !history.empty()) {
+        std::string msg = "Macro Loaded with total frame count (" + std::to_string(history.size()) + ")";
+        ImGui::Text(msg.c_str());
+
+        if (ImGui::Button("Save", ImVec2(-1.0f, 0.0f))) {
+            SaveMacro();
+        }
+
+    }
+
     ImGui::End();
+}
+
+
+void MacroEditorWindow::DisplayStatus() {
+
+
+    if (isRecording) {
+        statusTitle = "Recording...";
+        statusColor = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+    }
+    if (!isRecording) {
+        statusTitle = "Not Recording";
+        statusColor = ImVec4(0.34f, 0.34f, 0.34f, 1.0f);
+    }
+
+    ImGui::TextColored(statusColor, (statusTitle + " " + std::to_string(frameNum)).c_str());
+
 }
 
 
 void MacroEditorWindow::StartRecording() {
     isRecording = true;
-    statusTitle = "Recording...";
-    statusColor = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
 
+    startingFrame = gPlayState->gameplayFrames;
     frameNum = 0;
     history.clear();
 }
@@ -116,77 +155,23 @@ void MacroEditorWindow::RecordButton(OSContPad input) {
     if (frameNum == history.size()) {
         history.push_back(input);
     }
-    
-
+    frameNum = gPlayState->gameplayFrames - startingFrame;
 }
 
 
 void MacroEditorWindow::StopRecording() {
     isRecording = false;
-
-    statusTitle = "Not Recording";
-    statusColor = ImVec4(0.34f, 0.34f, 0.34f, 1.0f);
 }
 
 
-void MacroEditorWindow::DrawAnalogPreview(const char* label, ImVec2 stick, float deadzone, bool gyro) {
-    ImGui::BeginChild(label, ImVec2(gyro ? SCALE_IMGUI_SIZE(78) : SCALE_IMGUI_SIZE(96), SCALE_IMGUI_SIZE(85)), false);
-    ImGui::SetCursorPos(ImVec2(ImGui::GetCursorPos().x + gyro ? SCALE_IMGUI_SIZE(10) : SCALE_IMGUI_SIZE(18),
-                               ImGui::GetCursorPos().y + gyro ? SCALE_IMGUI_SIZE(10) : 0));
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
+bool MacroEditorWindow::SaveMacro() {
+    if (CVarGetInteger("gMacroSaving", 0) == 0) {
+        statusTitle = "Saving...";
+        statusColor = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
 
-    const ImVec2 cursorScreenPosition = ImGui::GetCursorScreenPos();
+        gMacroThread = std::thread(&SaveMacroImgui);
+        return true;
+    }    
 
-    // Draw the border box
-    float borderSquareLeft = cursorScreenPosition.x + SCALE_IMGUI_SIZE(2.0f);
-    float borderSquareTop = cursorScreenPosition.y + SCALE_IMGUI_SIZE(2.0f);
-    float borderSquareSize = SCALE_IMGUI_SIZE(65.0f);
-    drawList->AddRect(ImVec2(borderSquareLeft, borderSquareTop),
-                      ImVec2(borderSquareLeft + borderSquareSize, borderSquareTop + borderSquareSize),
-                      ImColor(100, 100, 100, 255), 0.0f, 0, 1.5f);
-
-    // Draw the gate background
-    float cardinalRadius = SCALE_IMGUI_SIZE(22.5f);
-    float diagonalRadius = SCALE_IMGUI_SIZE(22.5f * (69.0f / 85.0f));
-
-    ImVec2 joystickCenterpoint = ImVec2(cursorScreenPosition.x + cardinalRadius + SCALE_IMGUI_SIZE(12),
-                                        cursorScreenPosition.y + cardinalRadius + SCALE_IMGUI_SIZE(11));
-    drawList->AddQuadFilled(joystickCenterpoint,
-                            ImVec2(joystickCenterpoint.x - diagonalRadius, joystickCenterpoint.y + diagonalRadius),
-                            ImVec2(joystickCenterpoint.x, joystickCenterpoint.y + cardinalRadius),
-                            ImVec2(joystickCenterpoint.x + diagonalRadius, joystickCenterpoint.y + diagonalRadius),
-                            ImColor(130, 130, 130, 255));
-    drawList->AddQuadFilled(joystickCenterpoint,
-                            ImVec2(joystickCenterpoint.x + diagonalRadius, joystickCenterpoint.y + diagonalRadius),
-                            ImVec2(joystickCenterpoint.x + cardinalRadius, joystickCenterpoint.y),
-                            ImVec2(joystickCenterpoint.x + diagonalRadius, joystickCenterpoint.y - diagonalRadius),
-                            ImColor(130, 130, 130, 255));
-    drawList->AddQuadFilled(joystickCenterpoint,
-                            ImVec2(joystickCenterpoint.x + diagonalRadius, joystickCenterpoint.y - diagonalRadius),
-                            ImVec2(joystickCenterpoint.x, joystickCenterpoint.y - cardinalRadius),
-                            ImVec2(joystickCenterpoint.x - diagonalRadius, joystickCenterpoint.y - diagonalRadius),
-                            ImColor(130, 130, 130, 255));
-    drawList->AddQuadFilled(joystickCenterpoint,
-                            ImVec2(joystickCenterpoint.x - diagonalRadius, joystickCenterpoint.y - diagonalRadius),
-                            ImVec2(joystickCenterpoint.x - cardinalRadius, joystickCenterpoint.y),
-                            ImVec2(joystickCenterpoint.x - diagonalRadius, joystickCenterpoint.y + diagonalRadius),
-                            ImColor(130, 130, 130, 255));
-
-    // Draw the joystick position indicator
-    ImVec2 joystickIndicatorDistanceFromCenter = ImVec2(0, 0);
-    if ((stick.x * stick.x + stick.y * stick.y) > (deadzone * deadzone)) {
-        joystickIndicatorDistanceFromCenter =
-            ImVec2((stick.x * (cardinalRadius / 85.0f)), -(stick.y * (cardinalRadius / 85.0f)));
-    }
-    float indicatorRadius = SCALE_IMGUI_SIZE(5.0f);
-    drawList->AddCircleFilled(ImVec2(joystickCenterpoint.x + joystickIndicatorDistanceFromCenter.x,
-                                     joystickCenterpoint.y + joystickIndicatorDistanceFromCenter.y),
-                              indicatorRadius, ImColor(34, 51, 76, 255), 7);
-
-    if (!gyro) {
-        ImGui::SetCursorPos(
-            ImVec2(ImGui::GetCursorPos().x - SCALE_IMGUI_SIZE(8), ImGui::GetCursorPos().y + SCALE_IMGUI_SIZE(72)));
-        ImGui::Text("X:%3d, Y:%3d", static_cast<int32_t>(stick.x), static_cast<int32_t>(stick.y));
-    }
-    ImGui::EndChild();
+    return false;
 }
