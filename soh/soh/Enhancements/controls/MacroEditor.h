@@ -8,6 +8,8 @@
 #include <vector>
 #include <set>
 
+
+
 class MacroEditorWindow : public LUS::GuiWindow {
   public:
     using GuiWindow::GuiWindow;
@@ -28,11 +30,14 @@ protected:
     void UpdateElement() override;
 
 private:
-    ImVec4 statusColor = ImVec4(0.34f, 0.34f, 0.34f, 1.0f);
-    std::string statusTitle = "Not Recording";
+    unsigned int frameNum = 0;
+    std::vector<OSContPad> history;
+    void RecordButton(OSContPad input);
 
     void DrawStickSection(uint8_t port, uint8_t stick, int32_t id, ImVec4 color);
 
+    ImVec4 statusColor = ImVec4(0.34f, 0.34f, 0.34f, 1.0f);
+    std::string statusTitle = "Not Recording";
     bool isRecording = false;
     void StartRecording();
     void StopRecording();

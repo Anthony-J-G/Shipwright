@@ -1,4 +1,5 @@
 #include "MacroEditor.h"
+#include "libultraship/libultra/controller.h"
 #include <Utils/StringHelper.h>
 #include "soh/OTRGlobals.h"
 #include "../../UIWidgets.hpp"
@@ -29,6 +30,7 @@ void MacroEditorWindow::UpdateElement() {
 void MacroEditorWindow::DrawElement() {
     ImGui::Begin("Input Macro Editor###sohMacroEditorWindowV1", &mIsVisible);
 
+    // Break early if the PlayState is NULL
     if (gPlayState == NULL) {
         ImGui::Text("Waiting For Play State to start...");
         StopRecording();
@@ -37,8 +39,23 @@ void MacroEditorWindow::DrawElement() {
         return;
     }
 
+    OSContPad* pads = LUS::Context::GetInstance()->GetControlDeck()->GetPads();
+    OSContPad mainController = pads[0];
+
+    if (mainController.button & BTN_DDOWN && mainController.button & BTN_L) {
+        gPlayState->frameAdvCtx.enabled = true;
+    }
+
+    if (pads[0].button & BTN_DUP && pads[0].button & BTN_L) {
+        gPlayState->frameAdvCtx.enabled = false;
+    }
+
+    // Enable Frame Advance
     UIWidgets::PaddedSeparator();
     ImGui::Checkbox("Frame Advance##frameAdvance", (bool*)&gPlayState->frameAdvCtx.enabled);
+    UIWidgets::Tooltip(
+        "Toggles frame advance mode. Inputting L + D-pad Down turns it on, inputting L + D-pad Up turns it off."
+    );
     if (gPlayState->frameAdvCtx.enabled) {
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12.0f, 6.0f));
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0, 0));
@@ -56,22 +73,27 @@ void MacroEditorWindow::DrawElement() {
         ImGui::PopStyleColor(1);
     }
 
+    // Setup Recording
     ImGui::TextColored(statusColor, statusTitle.c_str());
 
     if (!isRecording) {
         if (ImGui::Button("Start Recording", ImVec2(-1.0f, 0.0f))) {
             StartRecording();
-
-            statusTitle = "Recording...";
-            statusColor = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
         }
 
     } else {
+        std::string buttonsPressed = (
+            std::to_string(pads[0].button) + " " + 
+            std::to_string(pads[0].stick_x) + " " + 
+            std::to_string(pads[0].stick_y)
+        );
+
+        RecordButton(mainController);
+
+        ImGui::Text(buttonsPressed.c_str());
+
         if (ImGui::Button("Stop Recording", ImVec2(-1.0f, 0.0f))) {
             StopRecording();
-
-            statusTitle = "Not Recording";
-            statusColor = ImVec4(0.34f, 0.34f, 0.34f, 1.0f);
         }
 
     }
@@ -79,12 +101,31 @@ void MacroEditorWindow::DrawElement() {
     ImGui::End();
 }
 
+
 void MacroEditorWindow::StartRecording() {
     isRecording = true;
+    statusTitle = "Recording...";
+    statusColor = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+
+    frameNum = 0;
+    history.clear();
 }
+
+
+void MacroEditorWindow::RecordButton(OSContPad input) {
+    if (frameNum == history.size()) {
+        history.push_back(input);
+    }
+    
+
+}
+
 
 void MacroEditorWindow::StopRecording() {
     isRecording = false;
+
+    statusTitle = "Not Recording";
+    statusColor = ImVec4(0.34f, 0.34f, 0.34f, 1.0f);
 }
 
 
