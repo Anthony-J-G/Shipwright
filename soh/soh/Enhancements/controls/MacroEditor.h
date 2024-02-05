@@ -30,20 +30,27 @@ protected:
 
 private:
     bool isRecording = false;
+    bool isPlaying = false;
 
     ImVec4 statusColor = ImVec4(0.34f, 0.34f, 0.34f, 1.0f);
-    MacroEditorStatus status = MacroEditorStatus_NotRecording;
+
     u32 startingFrame = 0;
     u32 frameNum = 0;
     std::vector<OSContPad> history;
 
+    OSContPad* p1;
+
     void DisplayStatus();
 
-    void RecordButton(OSContPad input);
+    void RecordInput(OSContPad input);
+    void SendInput();
     
     void StartRecording();
     void StopRecording();
 
-    bool SaveMacro();
+    void StartPlayback();
+    void StopPlayback();
 
+    bool SaveMacro();
+    bool LoadMacro();
 };
