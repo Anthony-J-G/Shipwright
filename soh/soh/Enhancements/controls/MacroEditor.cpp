@@ -39,6 +39,14 @@ std::thread gMacroThread;
 
 static const char* recordingStatusDisplayOptions[4] = { "Not Recording", "Recording...", "Saving...", "Saved!" };
 
+// Test function to debug sending inputs to the game
+void TestPlayback() {
+
+
+
+
+}
+
 
 
 void SaveMacroImgui(const std::vector<OSContPad>& history) {
@@ -222,10 +230,9 @@ void MacroEditorWindow::DrawElement() {
         SendInput();
     }
 
-    if (ImGui::Button("Test Button")) {
-        std::shared_ptr<LUS::Controller> t = 
-            LUS::Context::GetInstance()->GetControlDeck()->GetControllerByPort(0);
-
+    UIWidgets::PaddedSeparator();
+    if (ImGui::Button("Run Test")) {
+        std::shared_ptr<LUS::Controller> t = LUS::Context::GetInstance()->GetControlDeck()->GetControllerByPort(0);
     }
 
     ImGui::End();
@@ -299,6 +306,7 @@ void MacroEditorWindow::StartPlayback() {
     }
 
     isPlaying = true;
+    mainController = LUS::Context::GetInstance()->GetControlDeck()->GetControllerByPort(0);
 
     startingFrame = gPlayState->gameplayFrames;
     frameNum = 0;
@@ -309,18 +317,20 @@ void MacroEditorWindow::StartPlayback() {
 
 
 void MacroEditorWindow::SendInput() {
-    u32 framesPassed = gPlayState->gameplayFrames - startingFrame;
-    frameNum = framesPassed;
+    u32 currentFrame = gPlayState->gameplayFrames;
+    u32 framesPassed =  currentFrame - startingFrame;
     if (framesPassed >= (history.size() - 1) || (framesPassed < 0)) {
+        // If more frames have passed than exist in the history, stop macro playback
         StopPlayback();
         return;
     }
+    frameNum = framesPassed;
+
     OSContPad *pads = LUS::Context::GetInstance()->GetControlDeck()->GetPads();
     pads[0] = history[framesPassed];
 
-    // todo: Send Input to Game
+    // Send Input to Game
     LUS::Context::GetInstance()->GetControlDeck()->WriteToPad(pads);
-    return;
 }
 
 

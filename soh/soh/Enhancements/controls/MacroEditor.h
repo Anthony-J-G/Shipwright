@@ -38,7 +38,7 @@ private:
     u32 frameNum = 0;
     std::vector<OSContPad> history;
 
-    OSContPad* p1;
+    std::shared_ptr<LUS::Controller> mainController;
 
     void DisplayStatus();
 
