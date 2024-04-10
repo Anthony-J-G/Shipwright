@@ -41,6 +41,7 @@
 #include "Enhancements/game-interactor/GameInteractor.h"
 #include "Enhancements/cosmetics/authenticGfxPatches.h"
 #include "Enhancements/resolution-editor/ResolutionEditor.h"
+#include "Enhancements/debugger/MessageViewer.h"
 
 bool ToggleAltAssetsAtEndOfFrame = false;
 bool isBetaQuestEnabled = false;
@@ -116,7 +117,6 @@ namespace SohGui {
     std::shared_ptr<LUS::GuiWindow> mInputEditorWindow;
 
     std::shared_ptr<AudioEditor> mAudioEditorWindow;
-    std::shared_ptr<GameControlEditor::GameControlEditorWindow> mGameControlEditorWindow;
     std::shared_ptr<InputViewer> mInputViewer;
     std::shared_ptr<InputViewerSettingsWindow> mInputViewerSettings;
     std::shared_ptr<CosmeticsEditorWindow> mCosmeticsEditorWindow;
@@ -126,6 +126,7 @@ namespace SohGui {
     std::shared_ptr<MacroEditorWindow> mMacroEditorWindow;
     std::shared_ptr<DLViewerWindow> mDLViewerWindow;
     std::shared_ptr<ValueViewerWindow> mValueViewerWindow;
+    std::shared_ptr<MessageViewer> mMessageViewerWindow;
     std::shared_ptr<GameplayStatsWindow> mGameplayStatsWindow;
     std::shared_ptr<CheckTracker::CheckTrackerSettingsWindow> mCheckTrackerSettingsWindow;
     std::shared_ptr<CheckTracker::CheckTrackerWindow> mCheckTrackerWindow;
@@ -133,8 +134,8 @@ namespace SohGui {
     std::shared_ptr<ItemTrackerSettingsWindow> mItemTrackerSettingsWindow;
     std::shared_ptr<ItemTrackerWindow> mItemTrackerWindow;
     std::shared_ptr<RandomizerSettingsWindow> mRandomizerSettingsWindow;
-
     std::shared_ptr<AdvancedResolutionSettings::AdvancedResolutionSettingsWindow> mAdvancedResolutionSettingsWindow;
+    std::shared_ptr<SohModalWindow> mModalWindow;
 
     void SetupGuiElements() {
         auto gui = LUS::Context::GetInstance()->GetWindow()->GetGui();
@@ -167,8 +168,6 @@ namespace SohGui {
 
         mAudioEditorWindow = std::make_shared<AudioEditor>("gAudioEditor.WindowOpen", "Audio Editor");
         gui->AddGuiWindow(mAudioEditorWindow);
-        mGameControlEditorWindow = std::make_shared<GameControlEditor::GameControlEditorWindow>("gGameControlEditorEnabled", "Game Control Editor");
-        gui->AddGuiWindow(mGameControlEditorWindow);
         mInputViewer = std::make_shared<InputViewer>("gOpenWindows.InputViewer", "Input Viewer");
         gui->AddGuiWindow(mInputViewer);
         mInputViewerSettings = std::make_shared<InputViewerSettingsWindow>("gOpenWindows.InputViewerSettings", "Input Viewer Settings");
@@ -187,6 +186,8 @@ namespace SohGui {
         gui->AddGuiWindow(mDLViewerWindow);
         mValueViewerWindow = std::make_shared<ValueViewerWindow>("gValueViewer.WindowOpen", "Value Viewer");
         gui->AddGuiWindow(mValueViewerWindow);
+        mMessageViewerWindow = std::make_shared<MessageViewer>("gMessageViewerEnabled", "Message Viewer");
+        gui->AddGuiWindow(mMessageViewerWindow);
         mGameplayStatsWindow = std::make_shared<GameplayStatsWindow>("gGameplayStatsEnabled", "Gameplay Stats");
         gui->AddGuiWindow(mGameplayStatsWindow);
         mCheckTrackerWindow = std::make_shared<CheckTracker::CheckTrackerWindow>("gCheckTrackerEnabled", "Check Tracker");
@@ -203,9 +204,13 @@ namespace SohGui {
         gui->AddGuiWindow(mRandomizerSettingsWindow);
         mAdvancedResolutionSettingsWindow = std::make_shared<AdvancedResolutionSettings::AdvancedResolutionSettingsWindow>("gAdvancedResolutionEditorEnabled", "Advanced Resolution Settings");
         gui->AddGuiWindow(mAdvancedResolutionSettingsWindow);
+        mModalWindow = std::make_shared<SohModalWindow>("gOpenWindows.modalWindowEnabled", "Modal Window");
+        gui->AddGuiWindow(mModalWindow);
+        mModalWindow->Show();
     }
 
     void Destroy() {
+        mModalWindow = nullptr;
         mAdvancedResolutionSettingsWindow = nullptr;
         mRandomizerSettingsWindow = nullptr;
         mItemTrackerWindow = nullptr;
@@ -216,15 +221,21 @@ namespace SohGui {
         mGameplayStatsWindow = nullptr;
         mDLViewerWindow = nullptr;
         mValueViewerWindow = nullptr;
+        mMessageViewerWindow = nullptr;
         mSaveEditorWindow = nullptr;
         mColViewerWindow = nullptr;
         mActorViewerWindow = nullptr;
         mCosmeticsEditorWindow = nullptr;
-        mGameControlEditorWindow = nullptr;
         mAudioEditorWindow = nullptr;
         mInputEditorWindow = nullptr;
         mStatsWindow = nullptr;
         mConsoleWindow = nullptr;
         mSohMenuBar = nullptr;
+        mInputViewer = nullptr;
+        mInputViewerSettings = nullptr;
+    }
+
+    void RegisterPopup(std::string title, std::string message, std::string button1, std::string button2, std::function<void()> button1callback, std::function<void()> button2callback) {
+        mModalWindow->RegisterPopup(title, message, button1, button2, button1callback, button2callback);
     }
 }

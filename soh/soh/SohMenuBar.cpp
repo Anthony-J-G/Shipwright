@@ -21,8 +21,6 @@
 
 
 #include "Enhancements/audio/AudioEditor.h"
-#include "Enhancements/controls/GameControlEditor.h"
-#include "Enhancements/controls/MacroEditor.h"
 #include "Enhancements/controls/InputViewer.h"
 #include "Enhancements/cosmetics/CosmeticsEditor.h"
 #include "Enhancements/debugger/actorViewer.h"
@@ -31,6 +29,7 @@
 #include "Enhancements/debugger/dlViewer.h"
 #include "Enhancements/debugger/valueViewer.h"
 #include "Enhancements/gameplaystatswindow.h"
+#include "Enhancements/debugger/MessageViewer.h"
 #include "Enhancements/randomizer/randomizer_check_tracker.h"
 #include "Enhancements/randomizer/randomizer_entrance_tracker.h"
 #include "Enhancements/randomizer/randomizer_item_tracker.h"
@@ -106,6 +105,7 @@ static const char* imguiScaleOptions[4] = { "Small", "Normal", "Large", "X-Large
         "OHKO"
     };
     static const char* timeTravelOptions[3] = { "Disabled", "Ocarina of Time", "Any Ocarina" };
+    static const char* swordToggleModes[3] = { "Disabled", "Child Toggle", "Both Ages (May lead to unintended behaviour)"};
 
 extern "C" SaveContext gSaveContext;
 
@@ -114,11 +114,11 @@ namespace SohGui {
 void DrawMenuBarIcon() {
     static bool gameIconLoaded = false;
     if (!gameIconLoaded) {
-        LUS::Context::GetInstance()->GetWindow()->GetGui()->LoadTexture("Game_Icon", "textures/icons/gIcon.png");
+        LUS::Context::GetInstance()->GetWindow()->GetGui()->LoadTextureFromRawImage("Game_Icon", "textures/icons/gIcon.png");
         gameIconLoaded = true;
     }
 
-    if (LUS::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName("Game_Icon")) {
+    if (LUS::Context::GetInstance()->GetWindow()->GetGui()->HasTextureByName("Game_Icon")) {
 #ifdef __SWITCH__
         ImVec2 iconSize = ImVec2(20.0f, 20.0f);
         float posScale = 1.0f;
@@ -182,7 +182,6 @@ void DrawShipMenu() {
 }
 
 extern std::shared_ptr<LUS::GuiWindow> mInputEditorWindow;
-extern std::shared_ptr<GameControlEditor::GameControlEditorWindow> mGameControlEditorWindow;
 extern std::shared_ptr<InputViewer> mInputViewer;
 extern std::shared_ptr<InputViewerSettingsWindow> mInputViewerSettings;
 extern std::shared_ptr<AdvancedResolutionSettings::AdvancedResolutionSettingsWindow> mAdvancedResolutionSettingsWindow;
@@ -207,8 +206,7 @@ void DrawSettingsMenu() {
 
             static std::unordered_map<LUS::AudioBackend, const char*> audioBackendNames = {
                 { LUS::AudioBackend::WASAPI, "Windows Audio Session API" },
-                { LUS::AudioBackend::PULSE, "PulseAudio" },
-                { LUS::AudioBackend::SDL, "SDL" },
+                { LUS::AudioBackend::SDL, "SDL" }
             };
 
             ImGui::Text("Audio API (Needs reload)");
@@ -243,11 +241,6 @@ void DrawSettingsMenu() {
             if (mInputEditorWindow) {
                 if (ImGui::Button(GetWindowButtonText("Controller Mapping", CVarGetInteger("gControllerConfigurationEnabled", 0)).c_str(), ImVec2 (-1.0f, 0.0f))) {
                     mInputEditorWindow->ToggleVisibility();
-                }
-            }
-            if (mGameControlEditorWindow) {
-                if (ImGui::Button(GetWindowButtonText("Additional Controller Options", CVarGetInteger("gGameControlEditorEnabled", 0)).c_str(), ImVec2(-1.0f, 0.0f))) {
-                    mGameControlEditorWindow->ToggleVisibility();
                 }
             }
             UIWidgets::PaddedSeparator();
@@ -291,8 +284,10 @@ void DrawSettingsMenu() {
                                                   2.0f, "", 1.0f, true, true, disabled_resolutionSlider)) {
                 LUS::Context::GetInstance()->GetWindow()->SetResolutionMultiplier(CVarGetFloat("gInternalResolution", 1));
             }
-            UIWidgets::Tooltip("Multiplies your output resolution by the value inputted, as a more intensive but effective form of anti-aliasing");
-        #endif
+            UIWidgets::Tooltip("Resolution scale. Multiplies output resolution by this value, on each axis relative to window size.\n"
+                               "Lower values may improve performance.\n"
+                               "Values above 100% can be used for super-sampling, as an intensive but highly effective form of anti-aliasing.\n\n"
+                               "Default: 100%");
             
             if (mAdvancedResolutionSettingsWindow) {
                 ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12.0f, 6.0f));
@@ -306,14 +301,28 @@ void DrawSettingsMenu() {
                 ImGui::PopStyleColor(1);
                 ImGui::PopStyleVar(3);
             }
-
-        #ifndef __WIIU__
-            if (UIWidgets::PaddedEnhancementSliderInt("MSAA: %d", "##IMSAA", "gMSAAValue", 1, 8, "", 1, true, true, false)) {
-                LUS::Context::GetInstance()->GetWindow()->SetMsaaLevel(CVarGetInteger("gMSAAValue", 1));
-            };
-            UIWidgets::Tooltip("Activates multi-sample anti-aliasing when above 1x up to 8x for 8 samples for every pixel");
+        #else
+            // macOS: Internal resolution is currently disabled in libultraship.
+            ImGui::BeginGroup();
+            ImGui::Text("Internal Resolution: 100.0%%");
+            UIWidgets::Spacer(0);
+            ImGui::Text(" " ICON_FA_INFO_CIRCLE " Not available on this system.");
+            UIWidgets::Spacer(0);
+            ImGui::EndGroup();
         #endif
 
+        #ifndef __WIIU__
+            if (UIWidgets::PaddedEnhancementSliderInt(
+                    (CVarGetInteger("gMSAAValue", 1) == 1) ? "Anti-aliasing (MSAA): Off" : "Anti-aliasing (MSAA): %d",
+                    "##IMSAA", "gMSAAValue", 1, 8, "", 1, true, true, false)) {
+                LUS::Context::GetInstance()->GetWindow()->SetMsaaLevel(CVarGetInteger("gMSAAValue", 1));
+            }
+            UIWidgets::Tooltip("Activates MSAA (multi-sample anti-aliasing) from 2x up to 8x, to smooth the edges of rendered geometry.\n"
+                               "Higher sample count will result in smoother edges on models, but may reduce performance.\n\n"
+                               "Recommended: 2x or 4x");
+        #endif
+
+            UIWidgets::PaddedSeparator(true, true, 3.0f, 3.0f);
             { // FPS Slider
                 const int minFps = 20;
                 static int maxFps;
@@ -387,26 +396,27 @@ void DrawSettingsMenu() {
                 bool matchingRefreshRate =
                     CVarGetInteger("gMatchRefreshRate", 0) && LUS::Context::GetInstance()->GetWindow()->GetWindowBackend() != LUS::WindowBackend::DX11;
                 UIWidgets::PaddedEnhancementSliderInt(
-                    (currentFps == 20) ? "FPS: Original (20)" : "FPS: %d",
+                    (currentFps == 20) ? "Frame Rate: Original (20 fps)" : "Frame Rate: %d fps",
                     "##FPSInterpolation", "gInterpolationFPS", minFps, maxFps, "", 20, true, true, false, matchingRefreshRate);
             #endif
                 if (LUS::Context::GetInstance()->GetWindow()->GetWindowBackend() == LUS::WindowBackend::DX11) {
                     UIWidgets::Tooltip(
-                        "Uses Matrix Interpolation to create extra frames, resulting in smoother graphics. This is purely "
-                        "visual and does not impact game logic, execution of glitches etc.\n\n"
-                        "A higher target FPS than your monitor's refresh rate will waste resources, and might give a worse result."
-                    );
+                        "Uses Matrix Interpolation to create extra frames, resulting in smoother graphics.\n"
+                        "This is purely visual and does not impact game logic, execution of glitches etc.\n"
+                        "Higher frame rate settings may impact CPU performance."
+                        "\n\n " ICON_FA_INFO_CIRCLE 
+                        " There is no need to set this above your monitor's refresh rate. Doing so will waste resources and may give a worse result.");
                 } else {
                     UIWidgets::Tooltip(
-                        "Uses Matrix Interpolation to create extra frames, resulting in smoother graphics. This is purely "
-                        "visual and does not impact game logic, execution of glitches etc."
-                    );
+                        "Uses Matrix Interpolation to create extra frames, resulting in smoother graphics.\n"
+                        "This is purely visual and does not impact game logic, execution of glitches etc.\n"
+                        "Higher frame rate settings may impact CPU performance.");
                 }
             } // END FPS Slider
 
             if (LUS::Context::GetInstance()->GetWindow()->GetWindowBackend() == LUS::WindowBackend::DX11) {
                 UIWidgets::Spacer(0);
-                if (ImGui::Button("Match Refresh Rate")) {
+                if (ImGui::Button("Match Frame Rate to Refresh Rate")) {
                     int hz = LUS::Context::GetInstance()->GetWindow()->GetCurrentRefreshRate();
                     if (hz >= 20 && hz <= 360) {
                         CVarSetInteger("gInterpolationFPS", hz);
@@ -414,17 +424,22 @@ void DrawSettingsMenu() {
                     }
                 }
             } else {
-                UIWidgets::PaddedEnhancementCheckbox("Match Refresh Rate", "gMatchRefreshRate", true, false);
+                UIWidgets::PaddedEnhancementCheckbox("Match Frame Rate to Refresh Rate", "gMatchRefreshRate", true, false);
             }
-            UIWidgets::Tooltip("Matches interpolation value to the current game's window refresh rate");
+            UIWidgets::Tooltip("Matches interpolation value to the game window's current refresh rate.");
 
             if (LUS::Context::GetInstance()->GetWindow()->GetWindowBackend() == LUS::WindowBackend::DX11) {
                 UIWidgets::PaddedEnhancementSliderInt(CVarGetInteger("gExtraLatencyThreshold", 80) == 0 ? "Jitter fix: Off" : "Jitter fix: >= %d FPS",
                     "##ExtraLatencyThreshold", "gExtraLatencyThreshold", 0, 360, "", 80, true, true, false);
-                UIWidgets::Tooltip("When Interpolation FPS setting is at least this threshold, add one frame of input lag (e.g. 16.6 ms for 60 FPS) in order to avoid jitter. This setting allows the CPU to work on one frame while GPU works on the previous frame.\nThis setting should be used when your computer is too slow to do CPU + GPU work in time.");
+                UIWidgets::Tooltip(
+                    "(For DirectX backend only)\n\n"
+                    "When Interpolation FPS (Frame Rate) setting is at least this threshold, add one frame of delay (e.g. 16.6 ms for 60 FPS) in order to avoid jitter."
+                    "This setting allows the CPU to work on one frame while GPU works on the previous frame.\n"
+                    "This setting should be used when your computer is too slow to do CPU + GPU work in time.");
             }
 
             UIWidgets::PaddedSeparator(true, true, 3.0f, 3.0f);
+
             ImGui::Text("ImGui Menu Scale");
             ImGui::SameLine();
             ImGui::TextColored({ 0.85f, 0.35f, 0.0f, 1.0f }, "(Experimental)");
@@ -473,6 +488,7 @@ void DrawSettingsMenu() {
 
             if (LUS::Context::GetInstance()->GetWindow()->CanDisableVerticalSync()) {
                 UIWidgets::PaddedEnhancementCheckbox("Enable Vsync", "gVsyncEnabled", true, false);
+                UIWidgets::Tooltip("Activate vertical sync, to prevent screen tearing.");
             }
 
             if (LUS::Context::GetInstance()->GetWindow()->SupportsWindowedFullscreen()) {
@@ -480,17 +496,21 @@ void DrawSettingsMenu() {
             }
 
             if (LUS::Context::GetInstance()->GetWindow()->GetGui()->SupportsViewports()) {
-                UIWidgets::PaddedEnhancementCheckbox("Allow multi-windows", "gEnableMultiViewports", true, false, false, "", UIWidgets::CheckboxGraphics::Cross, true);
+                UIWidgets::PaddedEnhancementCheckbox("Allow multi-windows (Needs reload)", "gEnableMultiViewports", true, false, false, "", UIWidgets::CheckboxGraphics::Cross, true);
                 UIWidgets::Tooltip("Allows windows to be able to be dragged off of the main game window. Requires a reload to take effect.");
             }
 
             // If more filters are added to LUS, make sure to add them to the filters list here
-            ImGui::Text("Texture Filter (Needs reload)");
-
+            ImGui::Text("Texture Filtering (Needs reload)");
             UIWidgets::EnhancementCombobox("gTextureFilter", filters, FILTER_THREE_POINT);
+            UIWidgets::Tooltip("Texture filtering, aka texture smoothing. Requires a reload to take effect.\n\n"
+                               "Three-Point: Replicates real N64 texture filtering.\n"
+                               "Bilinear: If Three-Point causes poor performance, try this.\n"
+                               "Nearest: Disables texture smoothing. (Not recommended)");
 
-            UIWidgets::Spacer(0);
+            UIWidgets::PaddedSeparator(true, true, 3.0f, 3.0f);
 
+            // Draw LUS settings menu (such as Overlays Text Font)
             LUS::Context::GetInstance()->GetWindow()->GetGui()->GetGameOverlay()->DrawSettings();
 
             ImGui::EndMenu();
@@ -560,6 +580,7 @@ void DrawEnhancementsMenu() {
                 UIWidgets::PaddedEnhancementSliderInt("King Zora Speed: %dx", "##MWEEPSPEED", "gMweepSpeed", 1, 5, "", 1, true, false, true);
                 UIWidgets::PaddedEnhancementSliderInt("Vine/Ladder Climb speed +%d", "##CLIMBSPEED", "gClimbSpeed", 0, 12, "", 0, true, false, true);
                 UIWidgets::PaddedEnhancementSliderInt("Block pushing speed +%d", "##BLOCKSPEED", "gFasterBlockPush", 0, 5, "", 0, true, false, true);
+                UIWidgets::PaddedEnhancementSliderInt("Crawl speed %dx", "##CRAWLSPEED", "gCrawlSpeed", 1, 5, "", 1, true, false, true);
                 UIWidgets::PaddedEnhancementCheckbox("Faster Heavy Block Lift", "gFasterHeavyBlockLift", false, false);
                 UIWidgets::Tooltip("Speeds up lifting silver rocks and obelisks");
                 UIWidgets::PaddedEnhancementCheckbox("Skip Pickup Messages", "gFastDrops", true, false);
@@ -588,9 +609,11 @@ void DrawEnhancementsMenu() {
                 UIWidgets::Tooltip("Allows you to change the number of days it takes for Biggoron to forge the Biggoron Sword");
                 UIWidgets::PaddedEnhancementCheckbox("Remember Save Location", "gRememberSaveLocation", false, false);
                 UIWidgets::Tooltip("When loading a save, places Link at the last entrance he went through.\n"
-                        "This doesn't work if the save was made in a grotto.");
+                        "This doesn't work if the save was made in grottos/fairy fountains or dungeons.");
                 UIWidgets::PaddedEnhancementCheckbox("No Forced Navi", "gNoForcedNavi", true, false);
                 UIWidgets::Tooltip("Prevent forced Navi conversations");
+                UIWidgets::PaddedEnhancementCheckbox("Navi Timer Resets", "gEnhancements.ResetNaviTimer", true, false);
+                UIWidgets::Tooltip("Resets the Navi timer on scene change. If you have already talked to her, she will try and talk to you again, instead of needing a save warp or death. ");
                 UIWidgets::PaddedEnhancementCheckbox("No Skulltula Freeze", "gSkulltulaFreeze", true, false);
                 UIWidgets::Tooltip("Stops the game from freezing the player when picking up Gold Skulltulas");
                 UIWidgets::PaddedEnhancementCheckbox("Nighttime GS Always Spawn", "gNightGSAlwaysSpawn", true, false);
@@ -626,8 +649,12 @@ void DrawEnhancementsMenu() {
                 UIWidgets::Tooltip("The default response to Kaepora Gaebora is always that you understood what he said");
                 UIWidgets::PaddedEnhancementCheckbox("Exit Market at Night", "gMarketSneak", true, false);
                 UIWidgets::Tooltip("Allows exiting Hyrule Castle Market Town to Hyrule Field at night by speaking to the guard next to the gate.");
+                UIWidgets::PaddedEnhancementCheckbox("Shops and Games Always Open", "gEnhancements.OpenAllHours", true, false);
+                UIWidgets::Tooltip("Shops and minigames are open both day and night. Requires scene reload to take effect.");
                 UIWidgets::PaddedEnhancementCheckbox("Link as default file name", "gLinkDefaultName", true, false);
                 UIWidgets::Tooltip("Allows you to have \"Link\" as a premade file name");
+				UIWidgets::PaddedEnhancementCheckbox("Quit Fishing At Door", "gQuitFishingAtDoor", true, false);
+                UIWidgets::Tooltip("Fisherman asks if you want to quit at the door when you still have the rod");
                 UIWidgets::PaddedText("Time Travel with the Song of Time", true, false);
                 UIWidgets::EnhancementCombobox("gTimeTravel", timeTravelOptions, 0);
                 UIWidgets::Tooltip("Allows Link to freely change age by playing the Song of Time.\n"
@@ -638,6 +665,8 @@ void DrawEnhancementsMenu() {
                     "- Obtained the Master Sword\n"
                     "- Not within range of Time Block\n"
                     "- Not within range of Ocarina playing spots");
+                UIWidgets::PaddedEnhancementCheckbox("Pause Warp", "gPauseWarp", true, false);
+                UIWidgets::Tooltip("Selection of warp song in pause menu initiates warp. Disables song playback.");
                 
                 ImGui::EndTable();
                 ImGui::EndMenu();
@@ -832,6 +861,40 @@ void DrawEnhancementsMenu() {
                     UIWidgets::Tooltip("The minimum weight for the unique fishing reward as an adult");
                     ImGui::EndMenu();
                 }
+                UIWidgets::Spacer(0);
+
+                if (ImGui::BeginMenu("Lost Woods Ocarina Game")) {
+                    UIWidgets::EnhancementCheckbox("Customize Behavior", "gCustomizeOcarinaGame");
+                    UIWidgets::Tooltip("Turn on/off changes to the lost woods ocarina game behavior");
+                    bool disabled = !CVarGetInteger("gCustomizeOcarinaGame", 0);
+                    static const char* disabledTooltip = "This option is disabled because \"Customize Behavior\" is turned off";
+                    UIWidgets::PaddedEnhancementCheckbox("Instant Win", "gInstantOcarinaGameWin", true, false, disabled, disabledTooltip);
+                    UIWidgets::Tooltip("Skips the lost woods ocarina game");
+                    UIWidgets::PaddedEnhancementSliderInt("Note Play Speed: %dx", "##OcarinaGameNoteSpeed", "gOcarinaGameNoteSpeed", 1, 5, "", 1, true, true, false, disabled, disabledTooltip);
+                    UIWidgets::Tooltip("Adjust the speed that the skull kids play notes");
+                    UIWidgets::PaddedEnhancementCheckbox("Unlimited Playback Time", "gOcarinaUnlimitedFailTime", true, false, disabled, disabledTooltip);
+                    UIWidgets::Tooltip("Removes the timer to play back the song");
+                    UIWidgets::PaddedEnhancementSliderInt("Number of Starting Notes: %d", "##OcarinaGameStartingNotes", "gOcarinaGameStartingNotes", 1, 8, "", 3, true, true, false,
+                                                          disabled, disabledTooltip);
+                    UIWidgets::Tooltip("Adjust the number of notes the skull kids play to start the first round");
+                    int roundMin = CVarGetInteger("gOcarinaGameStartingNotes", 3);
+                    UIWidgets::PaddedEnhancementSliderInt("Round One Notes: %d", "##OcarinaGameRoundOne",
+                                                          "gOcarinaGameRoundOneNotes", roundMin, 8, "", 5, true, true,
+                                                          false,
+                                                          disabled, disabledTooltip);
+                    UIWidgets::Tooltip("Adjust the number of notes you need to play to end the first round");
+                    UIWidgets::PaddedEnhancementSliderInt("Round Two Notes: %d", "##OcarinaGameRoundTwoNotes",
+                                                          "gOcarinaGameRoundTwoNotes", roundMin, 8, "", 6, true, true,
+                                                          false,
+                                                          disabled, disabledTooltip);
+                    UIWidgets::Tooltip("Adjust the number of notes you need to play to end the second round");
+                    UIWidgets::PaddedEnhancementSliderInt("Round Three Notes: %d", "##OcarinaGameRoundThreeNotes",
+                                                          "gOcarinaGameRoundThreeNotes", roundMin, 8, "", 8, true, true,
+                                                          false,
+                                                          disabled, disabledTooltip);
+                    UIWidgets::Tooltip("Adjust the number of notes you need to play to end the third round");
+                    ImGui::EndMenu();
+                }
 
                 UIWidgets::Spacer(0);
 
@@ -897,9 +960,13 @@ void DrawEnhancementsMenu() {
                 UIWidgets::Tooltip("Bonking into trees will have a chance to drop up to 3 sticks. Must already have obtained sticks.");
                 UIWidgets::PaddedEnhancementCheckbox("No Heart Drops", "gNoHeartDrops", true, false);
                 UIWidgets::Tooltip("Disables heart drops, but not heart placements, like from a Deku Scrub running off\nThis simulates Hero Mode from other games in the series");
-                UIWidgets::PaddedEnhancementCheckbox("Hyper Bosses", "gHyperBosses", true, false);
+                if (UIWidgets::PaddedEnhancementCheckbox("Hyper Bosses", "gHyperBosses", true, false)) {
+                    UpdateHyperBossesState();
+                }
                 UIWidgets::Tooltip("All major bosses move and act twice as fast.");
-                UIWidgets::PaddedEnhancementCheckbox("Hyper Enemies", "gHyperEnemies", true, false);
+                if (UIWidgets::PaddedEnhancementCheckbox("Hyper Enemies", "gHyperEnemies", true, false)) {
+                    UpdateHyperEnemiesState();
+                }
                 UIWidgets::Tooltip("All regular enemies and mini-bosses move and act twice as fast.");
                 UIWidgets::PaddedEnhancementCheckbox("Always Win Goron Pot", "gGoronPot", true, false);
                 UIWidgets::Tooltip("Always get the heart piece/purple rupee from the spinning Goron pot");
@@ -910,6 +977,8 @@ void DrawEnhancementsMenu() {
                 UIWidgets::Tooltip("All dogs can be traded in and will count as Richard.");
                 UIWidgets::PaddedEnhancementSliderInt("Cuccos Stay Put Multiplier: %dx", "##CuccoStayDurationMultiplier", "gCuccoStayDurationMultiplier", 1, 5, "", 1, true, true, false);
                 UIWidgets::Tooltip("Cuccos will stay in place longer after putting them down, by a multiple of the value of the slider.");
+                UIWidgets::PaddedEnhancementSliderInt("Leever Spawn Rate: %d seconds", "##LeeverSpawnRate", "gEnhancements.LeeverSpawnRate", 0, 10, "", 0, true, true, false);
+                UIWidgets::Tooltip("The time between leever groups spawning.");
 
                 ImGui::EndMenu();
             }
@@ -926,6 +995,8 @@ void DrawEnhancementsMenu() {
                 UIWidgets::Tooltip("Disables the voice audio when Navi calls you");
                 UIWidgets::PaddedEnhancementCheckbox("Disable Hot/Underwater Warning Text", "gDisableTunicWarningText", true, false);
                 UIWidgets::Tooltip("Disables warning text when you don't have on the Goron/Zora Tunic in Hot/Underwater conditions.");
+                UIWidgets::PaddedEnhancementCheckbox("Remember Minimap State Between Areas", "gEnhancements.RememberMapToggleState");
+                UIWidgets::Tooltip("Preserves the minimap visibility state when going between areas rather than defaulting it to \"on\" when going through loading zones.");
 
                 ImGui::EndMenu();
             }
@@ -938,6 +1009,17 @@ void DrawEnhancementsMenu() {
             UIWidgets::Tooltip("Allows equipping the tunic and boots to c-buttons");
             UIWidgets::PaddedEnhancementCheckbox("Equipment Toggle", "gEquipmentCanBeRemoved", true, false);
             UIWidgets::Tooltip("Allows equipment to be removed by toggling it off on\nthe equipment subscreen.");
+            if (CVarGetInteger("gEquipmentCanBeRemoved", 0)) {
+                UIWidgets::PaddedText("Sword Toggle Options", true, false);
+                UIWidgets::EnhancementCombobox("gEnhancements.SwordToggle", swordToggleModes, SWORD_TOGGLE_NONE);
+                UIWidgets::Tooltip(
+                    "Introduces Options for unequipping Link's sword\n\n"
+                    "None: Only Biggoron's Sword/Giant's Knife can be toggled. Doing so will equip the Master Sword.\n\n"
+                    "Child Toggle: This will allow for completely unequipping any sword as child link.\n\n"
+                    "Both Ages: Any sword can be unequipped as either age. This may lead to swordless glitches as Adult.\n"
+                );
+            }
+
             UIWidgets::PaddedEnhancementCheckbox("Link's Cow in Both Time Periods", "gCowOfTime", true, false);
             UIWidgets::Tooltip("Allows the Lon Lon Ranch obstacle course reward to be shared across time periods");
             UIWidgets::PaddedEnhancementCheckbox("Enable visible guard vision", "gGuardVision", true, false);
@@ -1064,6 +1146,15 @@ void DrawEnhancementsMenu() {
                 UIWidgets::PaddedEnhancementCheckbox("Kokiri Draw Distance", "gDisableKokiriDrawDistance", true, false);
                 UIWidgets::Tooltip("The Kokiri are mystical beings that fade into view when approached\nEnabling this will remove their draw distance");
             }
+            if (UIWidgets::PaddedEnhancementCheckbox("Show Age-Dependent Equipment", "gEnhancements.EquimentAlwaysVisible", true,
+                                                     false)) {
+                UpdatePatchHand();
+            }
+            UIWidgets::Tooltip("Makes all equipment visible, regardless of Age.");
+            if (CVarGetInteger("gEnhancements.EquimentAlwaysVisible", 0) == 1) {
+				UIWidgets::PaddedEnhancementCheckbox("Scale Adult Equipment as Child", "gEnhancements.ScaleAdultEquimentAsChild", true, false);
+				UIWidgets::Tooltip("Scales all of the Adult Equipment, as well and moving some a bit, to fit on Child Link Better. May not work properly with some mods.");
+			}
             UIWidgets::PaddedEnhancementCheckbox("N64 Mode", "gLowResMode", true, false);
             UIWidgets::Tooltip("Sets aspect ratio to 4:3 and lowers resolution to 240p, the N64's native resolution");
             UIWidgets::PaddedEnhancementCheckbox("Glitch line-up tick", "gDrawLineupTick", true, false);
@@ -1082,6 +1173,7 @@ void DrawEnhancementsMenu() {
                 PatchToTMedallions();
             }
             UIWidgets::Tooltip("When medallions are collected, the medallion imprints around the Master Sword pedestal in the Temple of Time will become colored");
+            UIWidgets::PaddedEnhancementCheckbox("Show locked door chains on both sides of locked doors", "gShowDoorLocksOnBothSides", true, false);
             UIWidgets::PaddedText("Fix Vanishing Paths", true, false);
             if (UIWidgets::EnhancementCombobox("gSceneSpecificDirtPathFix", zFightingOptions, ZFIGHT_FIX_DISABLED) && gPlayState != NULL) {
                 UpdateDirtPathFixState(gPlayState->sceneNum);
@@ -1094,6 +1186,8 @@ void DrawEnhancementsMenu() {
             UIWidgets::Tooltip("Space between text characters (useful for HD font textures)");
             UIWidgets::PaddedEnhancementCheckbox("More info in file select", "gFileSelectMoreInfo", true, false);
             UIWidgets::Tooltip("Shows what items you have collected in the file select screen, like in N64 randomizer");
+            UIWidgets::PaddedEnhancementCheckbox("Better ammo rendering in pause menu", "gEnhancements.BetterAmmoRendering", true, false);
+            UIWidgets::Tooltip("Ammo counts in the pause menu will work correctly regardless of the position of items in the inventory");
             ImGui::EndMenu();
         }
 
@@ -1160,6 +1254,11 @@ void DrawEnhancementsMenu() {
             UIWidgets::PaddedEnhancementCheckbox("Fix Darunia dancing too fast", "gEnhancements.FixDaruniaDanceSpeed",
                                                  true, false, false, "", UIWidgets::CheckboxGraphics::Cross, true);
             UIWidgets::Tooltip("Fixes Darunia's dancing speed so he dances to the beat of Saria's Song, like in vanilla.");
+            UIWidgets::PaddedEnhancementCheckbox("Fix raised Floor Switches", "gEnhancements.FixFloorSwitches", true, false);
+            UIWidgets::Tooltip("Fixes the two raised floor switches, the one in Forest Temple Basement and the one at the top of Fire Temple. \n"
+                "This will lower them, making activating them easier");
+            UIWidgets::PaddedEnhancementCheckbox("Fix Zora hint dialogue", "gFixZoraHintDialogue", true, false);
+            UIWidgets::Tooltip("Fixes one Zora's dialogue giving a hint about bringing Ruto's Letter to King Zora to properly occur before moving King Zora rather than after");
 
             ImGui::EndMenu();
         }
@@ -1274,6 +1373,14 @@ void DrawEnhancementsMenu() {
                     ImGui::EndMenu();
                 }
             }
+
+            UIWidgets::Spacer(0);
+            if (UIWidgets::PaddedEnhancementCheckbox("Hurt Container Mode", "gHurtContainer", true, false)) {
+                UpdateHurtContainerModeState(CVarGetInteger("gHurtContainer", 0));
+            }
+            UIWidgets::Tooltip("Changes Heart Piece and Heart Container functionality.\n\n"
+                "- Each Heart Container or full Heart Piece reduces Links hearts by 1.\n"
+                "- Can be enabled retroactively after a File has already started.");
 
             ImGui::EndMenu();
         }
@@ -1443,6 +1550,8 @@ void DrawCheatsMenu() {
         UIWidgets::Tooltip("This syncs the ingame time with the real world time");
         UIWidgets::PaddedEnhancementCheckbox("No ReDead/Gibdo Freeze", "gNoRedeadFreeze", true, false);
         UIWidgets::Tooltip("Prevents ReDeads and Gibdos from being able to freeze you with their scream");
+        UIWidgets::PaddedEnhancementCheckbox("Keese/Guay don't target you", "gNoKeeseGuayTarget", true, false);
+        UIWidgets::Tooltip("Keese and Guay no longer target you and simply ignore you as if you were wearing the skull mask");
         {
             static int32_t betaQuestEnabled = CVarGetInteger("gEnableBetaQuest", 0);
             static int32_t lastBetaQuestEnabled = betaQuestEnabled;
@@ -1520,6 +1629,7 @@ extern std::shared_ptr<ColViewerWindow> mColViewerWindow;
 extern std::shared_ptr<ActorViewerWindow> mActorViewerWindow;
 extern std::shared_ptr<DLViewerWindow> mDLViewerWindow;
 extern std::shared_ptr<ValueViewerWindow> mValueViewerWindow;
+extern std::shared_ptr<MessageViewer> mMessageViewerWindow;
 
 void DrawDeveloperToolsMenu() {
     if (ImGui::BeginMenu("Developer Tools")) {
@@ -1604,6 +1714,12 @@ void DrawDeveloperToolsMenu() {
         if (mValueViewerWindow) {
             if (ImGui::Button(GetWindowButtonText("Value Viewer", CVarGetInteger("gValueViewer.WindowOpen", 0)).c_str(), ImVec2(-1.0f, 0.0f))) {
                 mValueViewerWindow->ToggleVisibility();
+            }
+        }
+        UIWidgets::Spacer(0);
+        if (mMessageViewerWindow) {
+            if (ImGui::Button(GetWindowButtonText("Message Viewer", CVarGetInteger("gMessageViewerEnabled", 0)).c_str(), ImVec2(-1.0f, 0.0f))) {
+                mMessageViewerWindow->ToggleVisibility();
             }
         }
 
@@ -1895,4 +2011,4 @@ void SohMenuBar::DrawElement() {
         ImGui::EndMenuBar();
     }
 }
-} // namespace SohGui 
+} // namespace SohGui

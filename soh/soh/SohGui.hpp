@@ -11,8 +11,6 @@
 #include <stdio.h>
 #include "SohMenuBar.h"
 #include "Enhancements/audio/AudioEditor.h"
-#include "Enhancements/controls/GameControlEditor.h"
-#include "Enhancements/controls/MacroEditor.h"
 #include "Enhancements/controls/InputViewer.h"
 #include "Enhancements/cosmetics/CosmeticsEditor.h"
 #include "Enhancements/debugger/actorViewer.h"
@@ -25,6 +23,7 @@
 #include "Enhancements/randomizer/randomizer_entrance_tracker.h"
 #include "Enhancements/randomizer/randomizer_item_tracker.h"
 #include "Enhancements/randomizer/randomizer_settings_window.h"
+#include "SohModals.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,6 +39,7 @@ namespace SohGui {
     void SetupGuiElements();
     void Draw();
     void Destroy();
+    void RegisterPopup(std::string title, std::string message, std::string button1 = "OK", std::string button2 = "", std::function<void()> button1callback = nullptr, std::function<void()> button2callback = nullptr);
 }
 
 #endif /* SohGui_hpp */
